@@ -943,8 +943,11 @@ blk_status_t nvme_setup_cmd(struct nvme_ns *ns, struct request *req)
 	struct nvme_command *cmd = nvme_req(req)->cmd;
 	blk_status_t ret = BLK_STS_OK;
 
+
 	if (!(req->rq_flags & RQF_DONTPREP))
 		nvme_clear_nvme_request(req);
+
+	/* TODO; Remove dangerous commands */
 
 	switch (req_op(req)) {
 	case REQ_OP_DRV_IN:
@@ -952,35 +955,35 @@ blk_status_t nvme_setup_cmd(struct nvme_ns *ns, struct request *req)
 		/* these are setup prior to execution in nvme_init_request() */
 		break;
 	case REQ_OP_FLUSH:
-		nvme_setup_flush(ns, cmd);
+		/*nvme_setup_flush(ns, cmd);*/
 		break;
 	case REQ_OP_ZONE_RESET_ALL:
 	case REQ_OP_ZONE_RESET:
-		ret = nvme_setup_zone_mgmt_send(ns, req, cmd, NVME_ZONE_RESET);
+		/*ret = nvme_setup_zone_mgmt_send(ns, req, cmd, NVME_ZONE_RESET);*/
 		break;
 	case REQ_OP_ZONE_OPEN:
-		ret = nvme_setup_zone_mgmt_send(ns, req, cmd, NVME_ZONE_OPEN);
+		/*ret = nvme_setup_zone_mgmt_send(ns, req, cmd, NVME_ZONE_OPEN);*/
 		break;
 	case REQ_OP_ZONE_CLOSE:
-		ret = nvme_setup_zone_mgmt_send(ns, req, cmd, NVME_ZONE_CLOSE);
+		/*ret = nvme_setup_zone_mgmt_send(ns, req, cmd, NVME_ZONE_CLOSE);*/
 		break;
 	case REQ_OP_ZONE_FINISH:
-		ret = nvme_setup_zone_mgmt_send(ns, req, cmd, NVME_ZONE_FINISH);
+		/*ret = nvme_setup_zone_mgmt_send(ns, req, cmd, NVME_ZONE_FINISH);*/
 		break;
 	case REQ_OP_WRITE_ZEROES:
-		ret = nvme_setup_write_zeroes(ns, req, cmd);
+		/* ret = nvme_setup_write_zeroes(ns, req, cmd); */
 		break;
 	case REQ_OP_DISCARD:
-		ret = nvme_setup_discard(ns, req, cmd);
+		/*ret = nvme_setup_discard(ns, req, cmd); */
 		break;
 	case REQ_OP_READ:
 		ret = nvme_setup_rw(ns, req, cmd, nvme_cmd_read);
 		break;
 	case REQ_OP_WRITE:
-		ret = nvme_setup_rw(ns, req, cmd, nvme_cmd_write);
+		/*ret = nvme_setup_rw(ns, req, cmd, nvme_cmd_write); */
 		break;
 	case REQ_OP_ZONE_APPEND:
-		ret = nvme_setup_rw(ns, req, cmd, nvme_cmd_zone_append);
+		/*ret = nvme_setup_rw(ns, req, cmd, nvme_cmd_zone_append);*/
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -1172,11 +1175,56 @@ EXPORT_SYMBOL_NS_GPL(nvme_passthru_end, NVME_TARGET_PASSTHRU);
 
 int nvme_execute_passthru_rq(struct request *rq, u32 *effects)
 {
+
 	struct nvme_command *cmd = nvme_req(rq)->cmd;
 	struct nvme_ctrl *ctrl = nvme_req(rq)->ctrl;
 	struct nvme_ns *ns = rq->q->queuedata;
 
 	*effects = nvme_passthru_start(ctrl, ns, cmd->common.opcode);
+
+
+	/* Block passthru commands */
+
+	/*As shown in nvme_init_request no queuedata implies admin queue
+	 * Only admin commands may be issued to the admin queue
+	 * https://nvmexpress.org/wp-content/uploads/2013/04/NVM_whitepaper.pdf
+	 */
+
+	if (req->q->queuedata) {
+		/* Block common commands */
+		if(!(
+			cmd->common.opcode == 0x02 ||
+			cmd->common.opcode == 0x05 ||
+			cmd->common.opcode == 0x09 ||
+			cmd->common.opcode == 0x0C ||
+			cmd->common.opcode == 0x05 ||
+			cmd->common.opcode == 0x0E ||
+			cmd->common.opcode == 0x11 ||
+			cmd->common.opcode == 0x15
+			)){
+			return false;
+	
+	}
+
+	else {
+		/* Block admin commands */
+		if (!(
+			cmd->common.opcode == 0x00 ||
+			cmd->common.opcode == 0x01 ||
+			cmd->common.opcode == 0x04 ||
+			cmd->common.opcode == 0x05 ||
+			cmd->common.opcode == 0x08 ||
+			cmd->common.opcode == 0x02 ||
+			cmd->common.opcode == 0x06 ||
+			cmd->common.opcode == 0x0A ||
+			cmd->common.opcode == 0x0C ||
+			cmd->common.opcode == 0x15 ||
+			cmd->common.opcode == 0x16 
+			)){
+			return false;
+		}
+	}
+
 	return nvme_execute_rq(rq, false);
 }
 EXPORT_SYMBOL_NS_GPL(nvme_execute_passthru_rq, NVME_TARGET_PASSTHRU);
