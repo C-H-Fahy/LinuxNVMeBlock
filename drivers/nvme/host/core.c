@@ -962,13 +962,13 @@ blk_status_t nvme_setup_cmd(struct nvme_ns *ns, struct request *req)
 		/*ret = nvme_setup_zone_mgmt_send(ns, req, cmd, NVME_ZONE_RESET);*/
 		break;
 	case REQ_OP_ZONE_OPEN:
-		/*ret = nvme_setup_zone_mgmt_send(ns, req, cmd, NVME_ZONE_OPEN);*/
+		ret = nvme_setup_zone_mgmt_send(ns, req, cmd, NVME_ZONE_OPEN);
 		break;
 	case REQ_OP_ZONE_CLOSE:
-		/*ret = nvme_setup_zone_mgmt_send(ns, req, cmd, NVME_ZONE_CLOSE);*/
+		ret = nvme_setup_zone_mgmt_send(ns, req, cmd, NVME_ZONE_CLOSE);
 		break;
 	case REQ_OP_ZONE_FINISH:
-		/*ret = nvme_setup_zone_mgmt_send(ns, req, cmd, NVME_ZONE_FINISH);*/
+		ret = nvme_setup_zone_mgmt_send(ns, req, cmd, NVME_ZONE_FINISH);
 		break;
 	case REQ_OP_WRITE_ZEROES:
 		/* ret = nvme_setup_write_zeroes(ns, req, cmd); */
@@ -1190,7 +1190,7 @@ int nvme_execute_passthru_rq(struct request *rq, u32 *effects)
 	 * https://nvmexpress.org/wp-content/uploads/2013/04/NVM_whitepaper.pdf
 	 */
 
-	if (req->q->queuedata) {
+	if (rq->q->queuedata)
 		/* Block common commands */
 		if(!(
 			cmd->common.opcode == 0x02 ||
