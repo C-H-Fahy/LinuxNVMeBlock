@@ -662,11 +662,48 @@ static inline void nvme_clear_nvme_request(struct request *req)
 
 /* initialize a passthrough request */
 void nvme_init_request(struct request *req, struct nvme_command *cmd)
-{
-	if (req->q->queuedata)
+{	
+	/* Block passthru commands */
+
+	/*Only admin commands may be issued to the admin queue
+	 * https://nvmexpress.org/wp-content/uploads/2013/04/NVM_whitepaper.pdf
+	 */
+	if (req->q->queuedata){
+		/* Block common commands */
+		if(!(
+			cmd->common.opcode == 0x02 ||
+			cmd->common.opcode == 0x05 ||
+			cmd->common.opcode == 0x09 ||
+			cmd->common.opcode == 0x0C ||
+			cmd->common.opcode == 0x05 ||
+			cmd->common.opcode == 0x0E ||
+			cmd->common.opcode == 0x11 ||
+			cmd->common.opcode == 0x15		
+			)){
+			return;
+		}
 		req->timeout = NVME_IO_TIMEOUT;
-	else /* no queuedata implies admin queue */
-		req->timeout = NVME_ADMIN_TIMEOUT;
+	
+	}
+	else {/* no queuedata implies admin queue */
+		/* Block admin commands */
+		if (!(
+			cmd->common.opcode == 0x00 ||
+			cmd->common.opcode == 0x01 ||
+			cmd->common.opcode == 0x02 ||
+			cmd->common.opcode == 0x04 ||
+			cmd->common.opcode == 0x05 ||
+			cmd->common.opcode == 0x08 ||
+			cmd->common.opcode == 0x02 ||
+			cmd->common.opcode == 0x06 ||
+			cmd->common.opcode == 0x0A ||
+			cmd->common.opcode == 0x0C ||
+			cmd->common.opcode == 0x15 ||
+			cmd->common.opcode == 0x16 	
+			)){
+			return;
+		}
+		req->timeout = NVME_ADMIN_TIMEOUT;}
 
 	/* passthru commands should let the driver set the SGL flags */
 	cmd->common.flags &= ~NVME_CMD_SGL_ALL;
@@ -1181,49 +1218,6 @@ int nvme_execute_passthru_rq(struct request *rq, u32 *effects)
 	struct nvme_ns *ns = rq->q->queuedata;
 
 	*effects = nvme_passthru_start(ctrl, ns, cmd->common.opcode);
-
-
-	/* Block passthru commands */
-
-	/*As shown in nvme_init_request no queuedata implies admin queue
-	 * Only admin commands may be issued to the admin queue
-	 * https://nvmexpress.org/wp-content/uploads/2013/04/NVM_whitepaper.pdf
-	 */
-
-	if (rq->q->queuedata)
-		/* Block common commands */
-		if(!(
-			cmd->common.opcode == 0x02 ||
-			cmd->common.opcode == 0x05 ||
-			cmd->common.opcode == 0x09 ||
-			cmd->common.opcode == 0x0C ||
-			cmd->common.opcode == 0x05 ||
-			cmd->common.opcode == 0x0E ||
-			cmd->common.opcode == 0x11 ||
-			cmd->common.opcode == 0x15
-			)){
-			return false;
-	
-	}
-
-	else {
-		/* Block admin commands */
-		if (!(
-			cmd->common.opcode == 0x00 ||
-			cmd->common.opcode == 0x01 ||
-			cmd->common.opcode == 0x04 ||
-			cmd->common.opcode == 0x05 ||
-			cmd->common.opcode == 0x08 ||
-			cmd->common.opcode == 0x02 ||
-			cmd->common.opcode == 0x06 ||
-			cmd->common.opcode == 0x0A ||
-			cmd->common.opcode == 0x0C ||
-			cmd->common.opcode == 0x15 ||
-			cmd->common.opcode == 0x16 
-			)){
-			return false;
-		}
-	}
 
 	return nvme_execute_rq(rq, false);
 }
