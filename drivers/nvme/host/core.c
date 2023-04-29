@@ -673,8 +673,7 @@ void nvme_init_request(struct request *req, struct nvme_command *cmd)
 		if(!(
 			cmd->common.opcode == 0x02 ||
 			cmd->common.opcode == 0x05 ||
-			cmd->common.opcode == 0x0C ||
-	
+			cmd->common.opcode == 0x0C	
 			)){
 			return;
 		}
